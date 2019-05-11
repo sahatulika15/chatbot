@@ -94,7 +94,7 @@ intent_sentences = ["Show me the cheapest fares","show me the flights",
 
 start_actions_sentences = ["Hello How can I help you", "Welcome to flight enquiry system"]
 
-user_replies = ["I would like information about ground transportation", "Show me the list of airline as well"
+user_replies = ["I would like information about ground transportation", "Show me the list of airline as well",
                     "Show me the ground transportation fare", "No nothing"]
                     
 start_user_replies = ["give me the flights and fares from $DCITY$","show me all flights and fares from $DCITY$", "what ground transportation is available from the $CITY$ and how much does it cost"]
@@ -236,7 +236,7 @@ labels2labels={'B-aircraft_code':all_tags[8],
  'I-arrive_time.time':all_tags[8],
  'I-arrive_time.time_relative':all_tags[8],
  'I-city_name':all_tags[6],
- 'I-class_type':all_tags[4],
+ 'I-class_type':all_tags[8],
  'I-cost_relative':all_tags[8],
  'I-depart_date.day_number':all_tags[3],
  'I-depart_date.today_relative':all_tags[3],

@@ -78,7 +78,7 @@ class Chatbots():
 
 
         """
-        if self.current_option == 5 or self.current_option == -1:
+        if self.current_option == -1:
             if self.previous_action == -1:
                 # check for no
                 # fixme the final quitting of the whole agent
@@ -87,14 +87,6 @@ class Chatbots():
 
                 # we need to parse the sentence and the identify the intents as well as update the slots vlaeu
                 self.intent_state = self.get_intent(sentence)
-                state = np.concatenate([self.slot_confidence , self.intent_state])
-                state = state.reshape([1, META_STATE_SIZE])
-                print("META_STATE : {}".format(state))
-            # meta_state = sta,te.copy()
-                option = self.meta_agent.act(state, all_act = list(range(META_OPTION_SIZE)), epsilon = 0.0)
-            # self.previous_option = self.current_option
-                print("option picked up : {}".format(option))
-                self.current_option = option
                 # check if some of them are already served and then move onto next
         reply = "" # this is teh reply that step will produce
         if self.previous_action in range(11, 19):
@@ -143,10 +135,28 @@ class Chatbots():
         elif self.previous_action == 19:
             # todo have to decide how to act in this situation
             # nullify the currnt option state
-            print("in elif block not starting================")
             self.intent_state[self.current_option] = 0
             self.previous_option = self.current_option
-            #self.intent_state = self.get_intent(sentence)
+            self.current_option = -1
+
+
+        # now we move one step further by calling the move to the next state function
+        # I think this needs to shifted to teh top
+        # an options and action of -1 will denote an interactiong in teh meta domain about the user intents etc
+        if self.current_option == -1:
+            # then we use the meta policy
+
+            # check if all the options are done ?
+            if np.sum(self.intent_state) < 0.1:
+                # ie no intents are active ask for the next set of intent
+                reply = "Anthing else that I can help with ? "
+                self.previous_action = -1
+                return [reply, self.previous_action , self.guessed_slots]
+
+
+
+
+            # else contionue with the next intent
             state = np.concatenate([self.slot_confidence , self.intent_state])
             state = state.reshape([1, META_STATE_SIZE])
             print("META_STATE : {}".format(state))
@@ -155,35 +165,6 @@ class Chatbots():
             # self.previous_option = self.current_option
             print("option picked up : {}".format(option))
             self.current_option = option
-            #self.current_option = -1
-
-
-        # now we move one step further by calling the move to the next state function
-        # I think this needs to shifted to teh top
-        # an options and action of -1 will denote an interactiong in teh meta domain about the user intents etc
-        if self.current_option == 5:
-            # then we use the meta policy
-
-            # check if all the options are done ?
-            #if np.sum(self.intent_state) < 0.1:
-                # ie no intents are active ask for the next set of intent
-            reply = "Anthing else that I can help with ? "
-            self.previous_action = -1
-            #self.current_option == -1
-            return [reply, self.previous_action , self.guessed_slots]
-
-
-
-
-            # else contionue with the next intent
-            #state = np.concatenate([self.slot_confidence , self.intent_state])
-            #state = state.reshape([1, META_STATE_SIZE])
-            #print("META_STATE : {}".format(state))
-            # meta_state = sta,te.copy()
-            #option = self.meta_agent.act(state, all_act = list(range(META_OPTION_SIZE)), epsilon = 0.0)
-            # self.previous_option = self.current_option
-            #print("option picked up : {}".format(option))
-            #self.current_option = option
 
 
         goal_vector = utils.one_hot(self.current_option, NO_INTENTS)
