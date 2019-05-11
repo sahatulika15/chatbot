@@ -1,0 +1,115 @@
+'''
+Author : Dhawal Gupta
+This code will deal with runnnig the whole system of meta and controller policy
+Controller policy over here is a single neural net
+Over here the NLU model will comprise of the intent module plus the Slot Filling Module
+
+'''
+import sys, os
+import numpy as np
+import random
+from src.DQN.DQN1 import DQNAgent
+from src.util import impdicts
+from NLU_env import NLU_Simulator
+from src.util import utils
+from intent_module import intent_module
+from arguments import get_args
+
+args = get_args()
+
+NO_SLOTS = args['number_slots']
+NO_INTENTS = args['number_intents']
+META_OPTION_SIZE = args['number_options']
+CONTROLLER_ACTION_SIZE = args['controller_action']
+META_STATE_SIZE = NO_SLOTS + NO_INTENTS
+CONTROLLER_STATE_SIZE = NO_SLOTS + NO_INTENTS
+
+
+# env = MetaEnvMulti()
+
+# load the Meta Agent
+metaAgent = DQNAgent(state_size=META_STATE_SIZE ,action_size= META_OPTION_SIZE, hiddenLayers=[75], dropout = args['dropout'], activation = 'relu',loadname = None, saveIn = False, learningRate=args['learning_rate'], discountFactor= args['discount_factor'], epsilon = 0.0)
+metaAgent.load(args['meta_weights'])
+
+# Load the controller agent 
+optionAgent = DQNAgent(state_size=CONTROLLER_STATE_SIZE ,action_size= CONTROLLER_ACTION_SIZE, hiddenLayers=[75], dropout = 0.000, activation = 'relu',loadname = None, saveIn = False, learningRate=0.05, discountFactor= 0.7, epsilon = 0.0 )# Not mkaing an agent for the user based actions
+optionAgent.load(args['controller_weights'])
+
+
+env = NLU_Simulator()
+
+done = False
+
+confidence_state, intent_state, done = env.step(action = -1) # -1 over here will be the greeting action and this will give us the starting state 
+
+while not done:
+    state = np.concatenate([confidence_state, intent_state])
+    state = state.reshape([1, META_STATE_SIZE])
+    meta_start_state = state.copy()
+    option = metaAgent.act(state, all_options, epsilon=epsilon)
+    next_confidence_state = env.meta_step_start(option)  # get the reward at the sub policy level
+    meta_reward = 0
+    print("The state : {}\nThe option : {}".format(meta_start_state, option))
+    if option == 5: # the user agent option:
+        pass
+    else:
+    #############################################################
+    # HERE COMES THE PART FOR CONTROLLER EXECUTION
+        option_completed = False
+        # make a one hot goal vector
+        goal_vector = utils.one_hot(option, NO_INTENTS)
+        i_ = 0
+        controller_state = np.concatenate([next_confidence_state, goal_vector])
+        controller_state = controller_state.reshape(1, CONTROLLER_STATE_SIZE)
+        while not option_completed:
+            opt_actions = range(CONTROLLER_ACTION_SIZE) # Currently it is the while possible actions size
+            action = option_agent.act(controller_state, all_act = opt_actions, epsilon = 0 ) # provide episone for greedy approach
+            next_confidence_state, _, option_completed = env.controller_step(option, action)
+            next_controller_state = np.concatenate([next_confidence_state, goal_vector])
+            next_controller_state = np.reshape(next_controller_state, [1, CONTROLLER_STATE_SIZE])
+            # we dont need to store the experience replay memory for the controller policy
+            controller_state = next_controller_state
+            i_ +=  1
+            if i_ > args['break_controller_loop']:
+                no_controller_breaks +=1
+                break
+
+        ###############################################
+
+    # @29/3/19 changes done over here
+    confidence_state, next_confidence_state, intent_state, meta_reward , done = env.meta_step_end5(option)
+
+
+    meta_end_state = np.concatenate([next_confidence_state, intent_state])
+    meta_end_state = meta_end_state.reshape([1, META_STATE_SIZE])
+    epsilon = MetaAgent.observe((meta_start_state, option,meta_reward, meta_end_state ,done), epsilon= epsilon )
+    print("The next meta state : {}\n The reward : {}\nEpsilon : {}".format(meta_end_state, meta_reward, epsilon))
+    if MetaAgent.memory.tree.total() > batch_size:
+        MetaAgent.replay()
+        MetaAgent.rem_rew(meta_reward)
+    i += 1
+    running_meta_reward = running_meta_reward + meta_reward
+    if i % 100 == 0:  # calculating different variables to be outputted after every 100 time steps
+        avr_rew = MetaAgent.avg_rew()
+        track.append([str(i) + " " + str(avr_rew) + " " + str(episode) + " " + str(epsilon)])
+        with open("results_" + a + "_.txt", 'w') as fi:
+            for j in range(0, len(track)):
+                line = track[j]
+                fi.write(str(line).strip("[]''") + "\n")
+    # print(track)
+    if done:
+        print("episode: {}/{}, score: {}, e's: {}\nNumber of Controller breaks : {}".format(episode, EPISODES, running_meta_reward, epsilon, no_controller_breaks))
+
+        print("The state is : ", meta_end_state)
+        break
+
+
+    confidence_state = next_confidence_state
+
+# now we need to create a nlu simulator that 
+
+
+
+
+
+
